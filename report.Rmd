@@ -1,0 +1,124 @@
+---
+title: "Machine Learning  Project"
+author: "Robert MS Danaraj"
+date: "Friday, February 13, 2015"
+output: html_document
+---
+**Summary of this Project**
+
+In this project the given data is analysed and the dimension of the data is reduced by pricipal component analysis.The dimension reduced data is trained by randomforest predictor.The results are validated by Holdout validation method.The results proved the effectiveness of the poposed method.
+
+
+```{r}
+library(Matrix)
+library(caret)
+library(randomForest)
+options(warn=-1,error=NULL)
+set.seed(2)
+```
+
+**Loading the Data**
+
+The  training and test data given by COURSERA  csv files are loaded into the R environment..
+The  values  "#DIV/0!" are replaced by  NA..
+
+
+```{r}
+training_data <- read.csv("pml-training.csv", na.strings=c("#DIV/0!") )
+evaluation_data <- read.csv("pml-testing.csv", na.strings=c("#DIV/0!") )
+
+```
+
+
+**Data Analysis**
+
+This data had 160 columns.The classe variable is to be treated an dependent variabale .The calle variable is to be determined from the other variables.
+
+The colums which hall all NAs are omitted.
+```{r}
+n=ncol(training_data)-1
+for(i in c(7:n)) {training_data[,i] = as.numeric(as.character(training_data[,i]))}
+for(i in c(7:n)) {evaluation_data[,i] = as.numeric(as.character(evaluation_data[,i]))}
+#The empty i.e only NA  columns  are excluded in the training set.
+ feature_set <- colnames(training_data[colSums(is.na(training_data)) == 0])[-(1:7)]
+ training <- training_data[feature_set]
+ evaluation <- evaluation_data[feature_set]
+
+```
+
+**Covariance Analysis**
+
+There are 53 variables including classe. The rank of the  Covariance matrix of 53 dependent variables found to be 52.It proves that the 2 variables are linearly independent.
+a=cov(training[1:52])
+rankMatrix(a)
+[1] 52
+attr(,"method")
+[1] "tolNorm2"
+attr(,"useGrad")
+[1] FALSE
+attr(,"tol")
+[1] 1.154632e-14
+
+**Dimension Reduction by PCA**
+
+Prinicipal component analysis is done to reduce the dimension.In that analysis also the dimension is reduced to 12.
+```{r}
+#The empty i.e only NA  columns  are excluded in the training set.
+ feature_set <- colnames(training_data[colSums(is.na(training_data)) == 0])[-(1:7)]
+training <- training[feature_set]
+testing <- testing[feature_set]
+ evaluation <- evaluation_data[feature_set]
+
+```
+
+**Holdout Validation Method**
+The training data data is split into teo equal parts .One used for training and other used for validation.
+```{r}
+Training <- createDataPartition(y = training_data$classe, p = 0.5, list = FALSE)
+training_data<-training[Training,]
+testing<-training[-Training,]
+```
+
+**Dimension Reduction by Principal Component Analysis**
+The dimension of the data is reduced by principal component analysis.The dimension of the predictor variables become 12.
+```{r}
+preProc <- preProcess(training[1:52], method = "pca", thresh = 0.8)
+trainTransformed <- predict(preProc, training[1:52])
+testTransformed <- predict(preProc, testing[1:52])
+```
+
+
+**Random Forest Model Fitting**
+
+Now the dimension reduced training and testing data is trained using random forest 
+```{r}
+rf <- randomForest(training$classe ~ .,data=trainTransformed, ntree=50,na.action=na.omit,keep.forest=TRUE, importance=TRUE)
+ predictions1 <- predict(rf, trainTransformed, type="response",
+                         norm.votes=TRUE, predict.all=FALSE, proximity=FALSE, nodes=FALSE)
+
+
+```
+The variation of tree size with error is plotted.
+```{r}
+plot(rf)
+
+```
+
+**Validation of  random forest model**
+
+The performance of the randomforest model is measured using confustion matrix command.The testing sample as well as training samples are simulated for
+output.
+
+```{r}
+ predictions1 <- predict(rf, trainTransformed, type="response",
+                         norm.votes=TRUE, predict.all=FALSE, proximity=FALSE, nodes=FALSE)
+ C1=confusionMatrix(predictions1,training$classe)
+ predictions2 <- predict(rf, newdata=testTransformed)
+C2=confusionMatrix(predictions2,testing$classe)
+C1$overall
+C2$overall
+```
+
+**Conclusion**
+
+The accuracy of the testing  and training data is 100%.The advantage of this dimention reduction is that the  whole process takes only 15 seconds including the loading of data.So the given data is fit with validated random forest model.Finaly itis concluded that this model is able to predict all the correct ouputs for the evalution data given in pml-testing.csv.
